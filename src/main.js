@@ -3,8 +3,25 @@ const ctx = canvas.getContext("2d");
 let lives = 3;
 const hazards = [];
 let spawnTimer = 0;
-const spawnInterval = 1.5; // seconds between spawns
 let score = 0;
+let difficultyLevel = 0;
+let difficultyTimer = 0;
+const difficultyStepSeconds = 10; // increase difficulty every 10 seconds
+
+const baseSpawnInterval = 1.5; // base spawn interval in seconds
+const minSpawnInterval = 0.35; // minimum spawn interval in seconds
+
+let flashTimer = 0; // Visual flash for diffulty increase
+let spawnInterval = baseSpawnInterval; // current spawn interval, starts at base
+
+// Spawn Interval Helper
+function recomputeSpawnInterval() {
+    // Each difficulty level makes spawns faster but never goes below the minimum
+    const next = baseSpawnInterval - difficultyLevel * 0.15;
+    spawnInterval = Math.max(minSpawnInterval, next);
+}
+
+recomputeSpawnInterval(); // initialize spawn interval based on initial difficulty
 
 // --- Game data (state) ---
 const player = {
@@ -50,6 +67,18 @@ function spawnHazard() {
 
 function update(dt) {
     score += dt; // increase score based on time survived
+
+    // Increase difficulty over time
+    difficultyTimer += dt;
+    if (difficultyTimer >= difficultyStepSeconds) {
+        difficultyTimer -= difficultyStepSeconds; // stays stable even if a frame stutters
+        difficultyLevel++;
+        recomputeSpawnInterval(); // update spawn interval based on new difficulty
+
+        flashTimer = 0.35; // flash for 0.35 seconds so you NOTICE the increase
+    }
+
+    if (flashTimer > 0) flashTimer -= dt; // count down flash timer
 
     // Update spawn timer and spawn hazards
     spawnTimer += dt;
@@ -106,22 +135,29 @@ function update(dt) {
 }
 
 function render() {
-    // Clear the screen every frame
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Background color shifts with difficulty; flash turns it bright briefly
+    let bg = 245 - difficultyLevel * 8; // gets darker over time
+    bg = Math.max(180, bg); // clamp so it doesn't get too dark
+    if (flashTimer > 0) bg = 255; // flash on level up
+
+    ctx.fillStyle = `rgb(${bg}, ${bg}, ${bg})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Reset to black for normal drawing
+    ctx.fillStyle = "black";
 
     // Draw UI text
     ctx.font = "20px system-ui";
-    ctx.fillText("Dodger - Loop Test", 20, 30);
-
-    // Draw the player
-    ctx.fillRect(player.x, player.y, player.w, player.h);
-
-    ctx.fillText(`Score: ${Math.floor(score)}`, 20, 55);
-    ctx.fillText(`Lives: ${lives}`, 20, 80);
+    ctx.fillText(`Score: ${Math.floor(score)}`, 20, 30);
+    ctx.fillText(`Lives: ${lives}`, 20, 55);
+    ctx.fillText(`Level: ${difficultyLevel}`, 20, 80);
 
     for (let hazard of hazards) {
         ctx.fillRect(hazard.x, hazard.y, hazard.w, hazard.h);
     }
+
+    // Draw the player
+    ctx.fillRect(player.x, player.y, player.w, player.h);
 }
 
 function loop(timestamp) {
