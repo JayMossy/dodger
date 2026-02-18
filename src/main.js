@@ -7,6 +7,7 @@ let score = 0;
 let difficultyLevel = 0;
 let difficultyTimer = 0;
 const difficultyStepSeconds = 10; // increase difficulty every 10 seconds
+let gameState = "playing"; // can be "playing" or "gameOver"
 
 const baseSpawnInterval = 1.5; // base spawn interval in seconds
 const minSpawnInterval = 0.35; // minimum spawn interval in seconds
@@ -43,6 +44,9 @@ const keys = {
 window.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") keys.left = true;
     if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") keys.right = true;
+    if (e.key === "r" || e.key === "R") {
+        if (gameState === "gameOver") resetGame();
+    }
 });
 
 window.addEventListener("keyup", (e) => {
@@ -66,6 +70,7 @@ function spawnHazard() {
 }
 
 function update(dt) {
+    if (gameState !== "playing") return;
     score += dt; // increase score based on time survived
 
     // Increase difficulty over time
@@ -112,11 +117,7 @@ function update(dt) {
             lives--;
 
             if (lives <= 0) {
-                alert("Game Over");
-                // Reset game state
-                lives = 3;
-                score = 0;
-                hazards.length = 0; // clear hazards
+                gameState = "gameOver";
             }
         }
     }
@@ -158,6 +159,14 @@ function render() {
 
     // Draw the player
     ctx.fillRect(player.x, player.y, player.w, player.h);
+
+    if (gameState === "gameOver") {
+        ctx.fillStyle = "black";
+        ctx.font = "48px system-ui";
+        ctx.fillText("GAME OVER", canvas.width / 2 - 150, canvas.height / 2);
+        ctx.font = "22px system-ui";
+        ctx.fillText("Press R to Restart", canvas.width / 2 - 110, canvas.height / 2 + 40);
+    }
 }
 
 function loop(timestamp) {
@@ -173,3 +182,25 @@ function loop(timestamp) {
 
 // Start the loop
 requestAnimationFrame(loop);
+
+function resetGame() {
+    lives = 3;
+    score = 0;
+
+    hazards.length = 0; // clear hazards
+
+    spawnTimer = 0;
+
+    difficultyLevel = 0;
+    difficultyTimer = 0;
+    flashTimer = 0;
+
+    spawnInterval = baseSpawnInterval; // reset spawn interval
+    recomputeSpawnInterval(); // ensure spawn interval is correct for reset difficulty
+
+    gameState = "playing";
+
+    // Reset player position
+    player.x = (canvas.width - player.w) / 2;
+    player.vx = 0;
+}
