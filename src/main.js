@@ -1,6 +1,10 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 let lives = 3;
+const hazards = [];
+let spawnTimer = 0;
+const spawnInterval = 1.5; // seconds between spawns
+let score = 0;
 
 // --- Game data (state) ---
 const player = {
@@ -31,7 +35,63 @@ window.addEventListener("keyup", (e) => {
 
 let lastTime = 0; // stores the previous timestamp
 
+// Spawns a new hazard at the top of the screen with random properties
+function spawnHazard() {
+    const size = 30 + Math.random() * 20; // random size between 30 and 50
+
+    hazards.push({
+        x: Math.random() * (canvas.width - size),
+        y: -size,
+        w: size,
+        h: size,
+        vy: 150 + Math.random() * 100, // random speed between 100 and 250
+    });
+}
+
 function update(dt) {
+    score += dt; // increase score based on time survived
+
+    // Update spawn timer and spawn hazards
+    spawnTimer += dt;
+
+    if (spawnTimer >= spawnInterval) {
+        spawnHazard();
+        spawnTimer = 0;
+    }
+
+    for (let hazard of hazards) {
+        hazard.y += hazard.vy * dt; // move hazard down
+    }
+
+    for (let i = hazards.length - 1; i >= 0; i--) {
+        if (hazards[i].y > canvas.height) {
+            hazards.splice(i, 1); // remove hazard if it goes off screen
+        }
+    }
+
+    for (let i = hazards.length - 1; i >= 0; i--) {
+        const h = hazards[i];
+        
+        const collision =
+            player.x < h.x + h.w &&
+            player.x + player.w > h.x &&
+            player.y < h.y + h.h &&
+            player.y + player.h > h.y;
+
+        if (collision) {
+            hazards.splice(i, 1);
+            lives--;
+
+            if (lives <= 0) {
+                alert("Game Over");
+                // Reset game state
+                lives = 3;
+                score = 0;
+                hazards.length = 0; // clear hazards
+            }
+        }
+    }
+
     // Convert key state into velocity (intent -> motion)
     if (keys.left && !keys.right) player.vx = -player.speed;
     else if (keys.right && !keys.left) player.vx = player.speed;
@@ -56,7 +116,12 @@ function render() {
     // Draw the player
     ctx.fillRect(player.x, player.y, player.w, player.h);
 
-    ctx.fillText(`Lives: ${lives}`, 20, 55);
+    ctx.fillText(`Score: ${Math.floor(score)}`, 20, 55);
+    ctx.fillText(`Lives: ${lives}`, 20, 80);
+
+    for (let hazard of hazards) {
+        ctx.fillRect(hazard.x, hazard.y, hazard.w, hazard.h);
+    }
 }
 
 function loop(timestamp) {
